@@ -4,7 +4,6 @@ import pandas as pd
 import json
 import os
 from datetime import datetime, date
-import streamlit.components.v1 as components
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -42,7 +41,6 @@ def get_market_calendar(days_ahead=90):
             (date(yr, 12, 25), "🔴 Weihnachten",                  "closed"),
         ]
         # Martin Luther King — 3. Montag Januar
-        d = date(yr, 1, 1)
         mondays = [date(yr, 1, 1) + timedelta(days=i) for i in range(31) if (date(yr,1,1)+timedelta(days=i)).weekday()==0]
         if len(mondays) >= 3: holidays.append((mondays[2], "🔴 Martin Luther King Day", "closed"))
         # Presidents Day — 3. Montag Februar
@@ -810,7 +808,7 @@ def quick_check(ticker):
 SCAN_UNIVERSE = [
     # ── S&P 500 + NASDAQ 100 — vollständige Liste (~580 Aktien) ─────────────
     # Mega Cap / Tech
-    "AAPL","MSFT","NVDA","GOOGL","GOOG","AMZN","META","TSLA","AVGO","ORCL",
+    "AAPL","MSFT","NVDA","GOOGL","AMZN","META","TSLA","AVGO","ORCL",
     "ADBE","CRM","INTU","NFLX","AMD","QCOM","TXN","AMAT","LRCX","KLAC",
     "CDNS","SNPS","MU","ADI","MCHP","ON","MPWR","INTC","SMCI","ARM",
     "PLTR","CSCO","IBM","ACN","NOW","WDAY","SNOW","DDOG","NET","ZS",
@@ -944,13 +942,11 @@ def scan_top_picks():
                 ema_perfect   = price > e20 > e50 > e200
                 ema_ok        = price > e200 and e20 > e50
 
-                # ATR & Stopp
+                # ATR (für zukünftige Stopp-Berechnung)
                 hl  = high - low
                 hpc = (high - close.shift(1)).abs()
                 lpc = (low  - close.shift(1)).abs()
                 atr14 = pd.concat([hl, hpc, lpc], axis=1).max(axis=1).rolling(14).mean().iloc[-1]
-                stop_loss = round(price - 2.0 * float(atr14), 2)
-                stop_pct  = round((stop_loss - price) / price * 100, 1)
 
                 # Flaggen-Muster (Konsolidierung nach starkem Anstieg)
                 move_20d = (price / float(close.iloc[-21]) - 1) * 100 if len(close) > 21 else 0
@@ -1045,8 +1041,6 @@ def scan_top_picks():
                     "vol_confirms":  vol_confirms,
                     "vol_breakout":  vol_breakout,
                     "vol_growing":   vol_trend_growing,
-                    "stop_loss":     stop_loss,
-                    "stop_pct":      stop_pct,
                 })
 
             except Exception:
@@ -1967,12 +1961,9 @@ with tab3:
                     st.rerun()
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# TAB 4 – ERKLÄRUNGEN
+# TAB 4 – KAUF-SIGNALE SCANNER
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab4:
-    # ═══════════════════════════════════════════════════════════════════════════
-    # TAB 4 – KAUF-SIGNALE SCANNER
-    # ═══════════════════════════════════════════════════════════════════════════
     st.subheader("Technische Kauf-Signale — Top 3 aus ~350 US-Aktien")
     st.caption(
         "Rein technische Analyse. Kein Fundamentals. "
@@ -1996,7 +1987,7 @@ with tab4:
         st.session_state["scan_done"] = True
 
     if st.session_state.get("scan_done"):
-        with st.spinner("Scanne ~350 US-Aktien auf technische Kaufsignale … (beim ersten Mal 3-5 Min)"):
+        with st.spinner("Scanne ~580 US-Aktien auf technische Kaufsignale … (beim ersten Mal 5-8 Min)"):
             picks = scan_top_picks()
 
         if not picks:
