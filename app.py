@@ -645,63 +645,79 @@ def quick_check(ticker):
 
 # ── Kauf-Signal Scanner ───────────────────────────────────────────────────────
 SCAN_UNIVERSE = [
-    # Mega Cap Tech
-    "AAPL","MSFT","NVDA","GOOGL","AMZN","META","TSLA","AVGO","ORCL","ADBE",
-    "CRM","INTU","NFLX","AMD","QCOM","TXN","AMAT","LRCX","KLAC","CDNS",
-    "SNPS","MCHP","ON","MPWR","MU","ADI","INTC","SMCI","ARM","PLTR",
-    # Gesundheit
+    # ── S&P 500 + NASDAQ 100 — vollständige Liste (~580 Aktien) ─────────────
+    # Mega Cap / Tech
+    "AAPL","MSFT","NVDA","GOOGL","GOOG","AMZN","META","TSLA","AVGO","ORCL",
+    "ADBE","CRM","INTU","NFLX","AMD","QCOM","TXN","AMAT","LRCX","KLAC",
+    "CDNS","SNPS","MU","ADI","MCHP","ON","MPWR","INTC","SMCI","ARM",
+    "PLTR","CSCO","IBM","ACN","NOW","WDAY","SNOW","DDOG","NET","ZS",
+    "CRWD","PANW","FTNT","OKTA","CYBR","HUBS","VEEV","ADSK","ANSS","PTC",
+    "TEAM","GTLB","MDB","CFLT","DOCN","ESTC","PATH","AI","BBAI","SOUN",
+    # Halbleiter
+    "NVDA","AMD","INTC","QCOM","TXN","AVGO","AMAT","LRCX","KLAC","ASML",
+    "MCHP","ON","MPWR","ADI","MU","SMCI","WOLF","SWKS","QRVO","MKSI",
+    "ENTG","ONTO","ACLS","FORM","CRUS","RMBS","SITM","AMBA","ALGM",
+    # Gesundheit / Biotech / Pharma
     "LLY","UNH","JNJ","ABT","TMO","ABBV","MRK","MDT","ELV","ISRG",
     "REGN","VRTX","IDXX","DXCM","BSX","PODD","WST","GEHC","HUM","CI",
     "BIIB","MRNA","ILMN","ZBH","RMD","BDX","ALGN","HOLX","IQV","STE",
-    # Finanzen
+    "GILD","AMGN","BMY","PFE","AZN","NVO","SNY","RGEN","PCVX","RXRX",
+    "NUVL","SMMT","TMDX","NTRA","RVTY","TECH","MTD","WAT","A","BIO",
+    "SGEN","INCY","IONS","EXEL","HALO","FOLD","LEGN","ROIV","XNCR",
+    # Finanzen / Versicherung / Kapitalmarkt
     "JPM","BAC","WFC","GS","MS","AXP","BLK","SCHW","ICE","CME",
     "COF","V","MA","SPGI","MCO","CB","PGR","AON","MMC","MSCI",
-    "NDAQ","FIS","FISV","AMP","LPLA","LPL","MKTX","STT","BEN","IVZ",
-    # Industrie
+    "NDAQ","STT","BEN","IVZ","AMP","TROW","RJF","RF","FITB","HBAN",
+    "CFG","KEY","MTB","USB","PNC","CMA","ZION","FI","CPAY","FIS",
+    "ACGL","AFL","AIZ","AIG","ALL","MET","PRU","PFG","CINF","GL",
+    "HIG","L","LNC","RLI","WRB","RE","ERIE","KNSL","RYAN","AJG",
+    "MMC","WTW","MKTX","LPLA","LPL","SF","SSNC","GS","MS","RJF",
+    # Industrie / Rüstung / Transport
     "CAT","DE","HON","ITW","GE","UPS","FDX","LMT","RTX","NOC",
-    "GD","BA","MMM","EMR","ROK","PH","ETN","AME","FAST","FIX",
-    "GEV","MLM","VMC","CBRE","CARR","OTIS","XYL","IEX","GNRC","URI",
-    "NSC","CSX","UNP","WAB","JBHT","CHRW","EXPD","GWW","PWR","MTZ",
+    "GD","BA","MMM","EMR","ROK","PH","ETN","AME","FAST","URI",
+    "GEV","MLM","VMC","CBRE","CARR","OTIS","XYL","IEX","GNRC","PWR",
+    "NSC","CSX","UNP","WAB","JBHT","CHRW","EXPD","GWW","MTZ","MAS",
+    "DOV","TT","IR","FTV","ARES","RSG","WM","CTAS","ROP","VRSK",
+    "TRMB","CPRT","AXON","TDG","HWM","TEL","APH","CDW","LDOS","SAIC",
+    "HII","LHX","BWXT","KTOS","CACI","BAH","MANT","DRS","TXT","TDY",
     # Energie
     "XOM","CVX","COP","SLB","EOG","MPC","PSX","VLO","OXY","HAL",
-    "DVN","FANG","HES","BKR","KMI","WMB","OKE","LNG","COP","APA",
-    # Konsum
+    "DVN","FANG","HES","BKR","KMI","WMB","OKE","APA","MRO","CTRA",
+    "EQT","AR","SWN","RRC","CNX","SM","MTDR","VTLE","CHRD","CRK",
+    "TRGP","DT","AM","MPLX","EPD","ET","PAA","ENLC","HESM",
+    # Konsum zyklisch
     "COST","HD","WMT","TGT","LOW","MCD","SBUX","NKE","BKNG","HLT",
     "MAR","RCL","DECK","ROST","TJX","ULTA","DRI","YUM","CMG","ABNB",
-    "UBER","EXPE","CVNA","CAVA","WING","DKNG","LVS","WYNN","MGM",
-    "KO","PEP","PM","MO","STZ","TAP","SYY","HSY","GIS","K",
-    "CPB","HRL","MKC","CAG","SJM","CLX","CHD","ENR","PG","CL",
+    "UBER","EXPE","LVS","WYNN","MGM","CZR","DKNG","PENN","GENI",
+    "NKE","LULU","UA","UAA","SKX","CROX","BOOT","YETI","WEBR","BIRD",
+    "GM","F","TSLA","RIVN","LCID","FSR","STLA","TM","HMC","RACE",
+    "ORLY","AZO","AAP","GPC","DORM","LKQ","MPAA",
+    # Konsum nicht-zyklisch / Nahrung
+    "KO","PEP","PM","MO","STZ","TAP","SAM","BF-B","DEO","BTI",
+    "PG","CL","COLM","KMB","CLX","CHD","SJM","HRL","GIS","K",
+    "CPB","MKC","CAG","MDLZ","KHC","HSY","SYY","USFD","PFGC","CHEF",
     # Kommunikation / Medien
-    "GOOGL","META","NFLX","DIS","CMCSA","T","VZ","TMUS","CHTR","EA",
-    "TTWO","RBLX","SPOT","SNAP","PINS","ZM","MTCH","IAC","OMC","IPG",
-    # Software / Cloud / Cyber
-    "NOW","SNOW","DDOG","NET","ZS","CRWD","OKTA","PANW","FTNT","HUBS",
-    "VEEV","WDAY","ADSK","ANSS","PTC","TTD","SHOP","MELI","SE","U",
-    "MDB","GTLB","CFLT","SAMSF","BILL","PCTY","PAYC","PAYX","ADP","JKHY",
+    "GOOGL","META","NFLX","DIS","CMCSA","T","VZ","TMUS","CHTR","WBD",
+    "FOXA","FOX","EA","TTWO","RBLX","SPOT","SNAP","PINS","MTCH","ZM",
+    "OMC","IPG","PUBM","TTD","MGNI","ZETA","DV","IAS",
     # Rohstoffe / Materialien
-    "NEM","FCX","SCCO","AA","ALB","MP","LIN","APD","ECL","PPG",
-    "NUE","STLD","CLF","X","CF","MOS","FMC","CE","LYB","DOW",
+    "LIN","APD","ECL","PPG","SHW","DD","DOW","LYB","CE","EMN",
+    "NEM","NUE","STLD","FCX","ALB","MP","SLVM","ATI","CMC","RS",
+    "MOS","CF","FMC","RPM","SON","PKG","SEE","BALL","AMCR","IP",
     # Versorger
     "NEE","DUK","SO","AEP","D","EXC","ED","SRE","PCG","XEL",
+    "ES","EIX","ETR","FE","AEE","CMS","NI","LNT","EVRG","PEG",
+    "WEC","AWK","CNP","NRG","VST","CEG",
     # REITs
     "AMT","CCI","PLD","EQIX","SPG","O","VICI","PSA","IRM","WY",
-    # Mid Cap Wachstum
-    "AXON","CELH","ELF","TOST","NTRA","CAVA","MEDP","RXRX","SOUN",
-    "SMMT","POWL","ONTO","TMDX","NUVL","SKX","YETI","VRSK","WEX",
-    "KSPI","GTLS","FND","LPX","NVR","PHM","DHI","LEN","TOL","MDC",
-    # Extra S&P 500
-    "ACGL","AFL","AIZ","APH","ARE","ATO","AVB","AVY","AZO","BAX",
-    "BRK-B","BWA","C","CBOE","CDW","CF","CINF","CMS","CNP","COO",
-    "CPRT","CTSH","CTVA","DAL","DD","DLTR","DOV","DTE","DVA","ECL",
-    "EFX","EIX","EL","EQT","ES","EW","EXR","F","FDS","FE",
-    "FFIV","FMC","GL","GLW","GM","GPC","GRMN","HAS","HPE","HPQ",
-    "HST","HUBB","HWM","IBM","IFF","INCY","IP","J","JCI","KEY",
-    "KHC","KMB","KMX","L","LH","LUV","LYV","MAS","MKC","MOH",
-    "MSCI","MTB","MTD","NEM","NRG","NTAP","NUE","OKE","PEG","PFG",
-    "PKG","PNC","PPL","PRU","RSG","SBAC","SNA","STX","SWK","SYF",
-    "SYK","TAP","TDG","TER","TFC","TGT","TPR","TRMB","TSCO","TSN",
-    "TT","TXT","UAL","UDR","UHS","USB","VFC","VMW","VTR","WAT",
-    "WBA","WELL","WHR","WM","WRB","WYNN","XEL","XRAY","ZBRA","ZION",
+    "WELL","VTR","EXR","AVB","EQR","ARE","ESS","MAA","UDR","CPT",
+    "BXP","KIM","REG","FRT","NNN","STOR","STAG","COLD","DRE","QTS",
+    # Homebuilder / Immobilien
+    "DHI","LEN","PHM","NVR","TOL","MDC","TMHC","MHO","BLD","IBP",
+    # Mid Cap Wachstum / Spezial
+    "CELH","ELF","TOST","CAVA","MEDP","POWL","FND","WING","GTLS","WEX",
+    "KSPI","LPX","CABO","TTEK","EXPO","SPSC","ALRM","ALTR","RBC","LBRT",
+    "PRIM","SFBS","SKYW","AEIS","AAON","KLIC","MGRC","NSIT","PLXS",
 ]
 
 @st.cache_data(ttl=86400, show_spinner=False)
@@ -1680,7 +1696,8 @@ with tab4:
     st.caption(
         "Rein technische Analyse. Kein Fundamentals. "
         "Das Tool prüft: Aufwärtstrend, MACD, gleitende Durchschnitte, RSI, Flaggen-Muster. "
-        "Einmal täglich gecacht — beim ersten Start dauert es 3-5 Minuten."
+        "Scannt S&P 500 + NASDAQ 100 — ~580 der wichtigsten US-Aktien. "
+        "Einmal täglich gecacht — beim ersten Start dauert es 5-8 Minuten."
     )
     st.markdown("---")
 
