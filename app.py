@@ -2039,25 +2039,13 @@ with tab4:
                         <div style="margin-top:10px">
                             {"".join(f'<div style="color:#2d1f4e;font-size:0.9rem;margin:4px 0">✅ {r}</div>' for r in p['reasons'])}
                         </div>
-                        <div style="margin-top:14px;background:#fff3cd;border:1px solid #ffc107;
-                                    border-radius:8px;padding:10px 14px;display:flex;
-                                    justify-content:space-between;align-items:center">
-                            <div>
-                                <span style="font-size:0.8rem;color:#856404;font-weight:600">🛑 STOP-LOSS setzen bei:</span>
-                                <span style="font-size:1.2rem;font-weight:800;color:#d32f2f;margin-left:8px">${p['stop_loss']:.2f}</span>
-                                <span style="font-size:0.85rem;color:#856404;margin-left:6px">({p['stop_pct']:.1f}% vom Einstieg)</span>
-                            </div>
-                            <div style="font-size:0.75rem;color:#856404">2× ATR — Profi-Methode</div>
-                        </div>
-                        <div style="margin-top:10px;font-size:0.8rem;color:#888">
-                            RSI: {p['rsi']} &nbsp;|&nbsp;
-                            {'MACD ↑ Frisches Kreuz' if p['macd_crossed'] else 'MACD positiv'}
-                            {'&nbsp;|&nbsp; 🚩 Flagge' if p['flag'] else ''}
-                            {'&nbsp;|&nbsp; ' + str(abs(p['pct_high'])) + '% unter 52W-Hoch' if p['pct_high'] < -5 else ''}
-                            &nbsp;|&nbsp;
-                            {'📊 Vol. ' + str(p['vol_rel']) + 'x — ' + ('Kauftage ✅' if p['vol_confirms'] else 'Verkaufstage ⚠️')}
-                            {'&nbsp;| 🔥 Ausbruchs-Vol.' if p['vol_breakout'] else ''}
-                            {'&nbsp;| 📈 Vol. wächst' if p['vol_growing'] else ''}
+                        <div style="margin-top:10px;font-size:0.82rem;color:#555;line-height:1.8">
+                            RSI: {p['rsi']} | {'MACD Frisches Kreuz ↑' if p['macd_crossed'] else 'MACD positiv'}
+                            {' | 🚩 Flagge' if p['flag'] else ''}
+                            {' | ' + str(abs(p['pct_high'])) + '% unter 52W-Hoch' if p['pct_high'] < -5 else ''}
+                            | 📊 Vol. {p['vol_rel']}x — {'Kauftage dominieren ✅' if p['vol_confirms'] else 'Verkaufstage ⚠️'}
+                            {' | 🔥 Ausbruchs-Volumen' if p['vol_breakout'] else ''}
+                            {' | 📈 Volumen wächst' if p['vol_growing'] else ''}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
