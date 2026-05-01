@@ -944,7 +944,7 @@ def scan_top_picks():
                 ema_perfect   = price > e20 > e50 > e200
                 ema_ok        = price > e200 and e20 > e50
 
-                # ATR & Stop-Loss
+                # ATR & Stopp
                 hl  = high - low
                 hpc = (high - close.shift(1)).abs()
                 lpc = (low  - close.shift(1)).abs()
@@ -1656,7 +1656,7 @@ with tab1:
                 )
             st.caption("Wachstum basiert auf aktuellen Jahresdaten von Yahoo Finance.")
 
-            st.subheader("Stop-Loss Vorschlag")
+            st.subheader("Stopp-Vorschlag")
             if res.get("stop_atr"):
                 c_s1, c_s2, c_s3 = st.columns(3)
                 c_s1.metric("Individuell (typ. Rücksetzer)",  fmt_usd(res.get("stop_individual")),
@@ -1665,7 +1665,7 @@ with tab1:
                             help="ATR = Average True Range: die durchschnittliche tägliche Schwankung der letzten 14 Tage. 2,5× ATR = normaler Spielraum. Quelle: Kurshistorie.")
                 c_s3.metric("60-Tage Swing Low",  fmt_usd(res["stop_swing"]),
                             help="Das tiefste Kursniveau der letzten 60 Handelstage. Fällt der Kurs darunter, ist der Aufwärtstrend gebrochen. Quelle: Kurshistorie.")
-                st.caption("Empfehlung: Individuellen Stop verwenden — er berücksichtigt wie viel Luft diese Aktie historisch braucht. Beim Nachziehen: auf letztes bestätigtes Tief anpassen.")
+                st.caption("Empfehlung: Individuellen Stopp verwenden — er berücksichtigt wie viel Luft diese Aktie historisch braucht. Beim Nachziehen: auf letztes bestätigtes Tief anpassen.")
 
         # ── Technik & CEO ─────────────────────────────────────────────────────
         with col_right:
@@ -1723,7 +1723,7 @@ with tab1:
                 qty = st.number_input("Anzahl Aktien", min_value=1, value=1)
                 bd  = st.date_input("Kaufdatum", value=date.today())
                 sl  = st.number_input(
-                    "Stop-Loss ($)", min_value=0.01,
+                    "Stopp ($)", min_value=0.01,
                     value=float(res.get("stop_atr") or res["current_price"] * 0.90), format="%.2f"
                 )
                 note = st.text_input("Notiz (optional)")
@@ -1761,7 +1761,7 @@ with tab2:
             c3, c4, c5 = st.columns(3)
             m_price  = c3.number_input("Einstiegspreis ($)", min_value=0.01, value=100.00, format="%.2f")
             m_qty    = c4.number_input("Anzahl Aktien", min_value=1, value=1)
-            m_sl     = c5.number_input("Stop-Loss ($)", min_value=0.01, value=90.00, format="%.2f")
+            m_sl     = c5.number_input("Stopp ($)", min_value=0.01, value=90.00, format="%.2f")
             m_date   = st.date_input("Kaufdatum", value=date.today())
             m_note   = st.text_input("Notiz (optional)")
             if st.form_submit_button("Hinzufügen", type="primary"):
@@ -1852,7 +1852,7 @@ with tab2:
                 c2.metric("Aktuell",   fmt_usd(cur),
                           delta=fmt_pct((cur - pos["entry_price"]) / pos["entry_price"] * 100))
                 c3.metric("Investiert", fmt_usd(invested))
-                c4.metric("Stop-Loss",  fmt_usd(sl))
+                c4.metric("Stopp",  fmt_usd(sl))
 
                 st.caption(f"Gekauft: {pos['buy_date']}  ·  {pos['quantity']} Aktien")
                 if pos.get("notes"):
@@ -1861,13 +1861,13 @@ with tab2:
                 c_sl, c_del = st.columns([3, 1])
                 with c_sl:
                     new_sl = st.number_input(
-                        "Stop-Loss anpassen ($)", min_value=0.01,
+                        "Stopp anpassen ($)", min_value=0.01,
                         value=float(sl or cur * 0.90), key=f"sl_{i}", format="%.2f"
                     )
-                    if st.button("Stop aktualisieren", key=f"upd_{i}"):
+                    if st.button("Stopp aktualisieren", key=f"upd_{i}"):
                         data["portfolio"][i]["stop_loss"] = new_sl
                         save_data(data)
-                        st.success("Stop-Loss aktualisiert.")
+                        st.success("Stopp aktualisiert.")
                 with c_del:
                     if st.button("Position schließen", key=f"del_{i}"):
                         data["portfolio"].pop(i)
@@ -2177,11 +2177,11 @@ with tab5:
         "<strong>Bullish Engulfing</strong>: Grüne Kerze schluckt die vorherige rote komplett — starkes Kaufsignal.<br>"
         "<strong>Doji</strong>: Fast kein Körper — der Markt ist unentschlossen, auf die nächste Kerze warten.")
 
-    erklaer("Was ist der Stop-Loss?",
-        "Das ist deine Sicherheitsleine. Du sagst vorher: 'Wenn die Aktie auf diesen Preis fällt, verkaufe ich automatisch.' "
-        "So begrenzt du deinen Verlust. Beispiel: du kaufst bei 100€, setzt Stop-Loss bei 88€. "
+    erklaer("Was ist ein Stopp?",
+        "Das ist deine Sicherheitsleine. Du sagst vorher: 'Wenn die Aktie auf diesen Preis fällt, verkaufe ich.' "
+        "So begrenzt du deinen Verlust. Beispiel: du kaufst bei 100€, setzt den Stopp bei 88€. "
         "Wenn die Aktie auf 88€ fällt, steigst du aus — du verlierst maximal 12%, nicht mehr.<br><br>"
-        "Wichtig: Den Stop immer nachziehen wenn die Aktie steigt. So sicherst du Gewinne ab.")
+        "Wichtig: Den Stopp immer nachziehen wenn die Aktie steigt. So sicherst du Gewinne ab.")
 
     erklaer("Was bedeutet Stop nachziehen?",
         "Wenn deine Aktie von 100€ auf 130€ steigt, ziehst du den Stop hoch — zum Beispiel auf 118€. "
@@ -2193,7 +2193,7 @@ with tab5:
     erklaer("Was ist das Portfolio?",
         "Das ist deine persönliche Aktiensammlung — alle Aktien die du gerade besitzt. "
         "Das Tool zeigt dir für jede Position: was hast du bezahlt, was ist sie jetzt wert, wie viel Gewinn oder Verlust hast du. "
-        "Und es warnt dich wenn eine Aktie deinen Stop-Loss erreicht.")
+        "Und es warnt dich wenn eine Aktie deinen Stopp erreicht.")
 
     erklaer("Was ist die Watchlist?",
         "Das sind Aktien, die dich interessieren — aber die du noch nicht gekauft hast. "
