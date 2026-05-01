@@ -637,6 +637,10 @@ def quick_check(ticker):
         if len(hist) < 50:
             return None
         price  = float(hist["Close"].iloc[-1])
+        # Zu geringes Volumen → nicht anzeigen
+        avg_vol_qc = float(hist["Volume"].rolling(20).mean().iloc[-1])
+        if avg_vol_qc < 500_000:
+            return None
         ema20  = float(hist["Close"].ewm(span=20,  adjust=False).mean().iloc[-1])
         ema50  = float(hist["Close"].ewm(span=50,  adjust=False).mean().iloc[-1])
         ema200 = float(hist["Close"].ewm(span=200, adjust=False).mean().iloc[-1])
@@ -827,6 +831,10 @@ def scan_top_picks():
                 avg_vol    = float(volume.rolling(20).mean().iloc[-1])
                 avg_vol5   = float(volume.iloc[-5:].mean())
                 vol_rel    = avg_vol5 / avg_vol if avg_vol > 0 else 1.0
+
+                # Zu geringes Volumen → überspringen
+                if avg_vol < 500_000:
+                    continue
 
                 # Kauftage vs Verkaufstage (letzten 20 Tage)
                 last20_c = close.iloc[-20:]
