@@ -14,6 +14,117 @@ try:
 except ImportError:
     _translator_available = False
 
+from datetime import timedelta
+
+# ── Marktkalender ─────────────────────────────────────────────────────────────
+def _third_friday(year, month):
+    """Gibt den dritten Freitag eines Monats zurück."""
+    first = date(year, month, 1)
+    days_to_fri = (4 - first.weekday()) % 7
+    return first + timedelta(days=days_to_fri + 14)
+
+def _first_friday(year, month):
+    first = date(year, month, 1)
+    days_to_fri = (4 - first.weekday()) % 7
+    d = first + timedelta(days=days_to_fri)
+    return d if d.month == month else d + timedelta(weeks=1)
+
+def get_market_calendar(days_ahead=90):
+    today = date.today()
+    events = []
+
+    for yr in [today.year, today.year + 1]:
+        # NYSE Feiertage
+        holidays = [
+            (date(yr, 1, 1),   "🔴 Neujahr",                    "closed"),
+            (date(yr, 6, 19),  "🔴 Juneteenth",                  "closed"),
+            (date(yr, 7, 4),   "🔴 Unabhängigkeitstag",          "closed"),
+            (date(yr, 12, 25), "🔴 Weihnachten",                  "closed"),
+        ]
+        # Martin Luther King — 3. Montag Januar
+        d = date(yr, 1, 1)
+        mondays = [date(yr, 1, 1) + timedelta(days=i) for i in range(31) if (date(yr,1,1)+timedelta(days=i)).weekday()==0]
+        if len(mondays) >= 3: holidays.append((mondays[2], "🔴 Martin Luther King Day", "closed"))
+        # Presidents Day — 3. Montag Februar
+        mondays2 = [date(yr, 2, 1) + timedelta(days=i) for i in range(28) if (date(yr,2,1)+timedelta(days=i)).weekday()==0]
+        if len(mondays2) >= 3: holidays.append((mondays2[2], "🔴 Presidents' Day", "closed"))
+        # Memorial Day — letzter Montag Mai
+        may_mondays = [date(yr, 5, 1) + timedelta(days=i) for i in range(31) if (date(yr,5,1)+timedelta(days=i)).weekday()==0 and (date(yr,5,1)+timedelta(days=i)).month==5]
+        if may_mondays: holidays.append((may_mondays[-1], "🔴 Memorial Day", "closed"))
+        # Labor Day — 1. Montag September
+        sep_mondays = [date(yr, 9, 1) + timedelta(days=i) for i in range(7) if (date(yr,9,1)+timedelta(days=i)).weekday()==0]
+        if sep_mondays: holidays.append((sep_mondays[0], "🔴 Labor Day", "closed"))
+        # Thanksgiving — 4. Donnerstag November
+        nov_thu = [date(yr,11,1)+timedelta(days=i) for i in range(30) if (date(yr,11,1)+timedelta(days=i)).weekday()==3]
+        if len(nov_thu) >= 4: holidays.append((nov_thu[3], "🔴 Thanksgiving", "closed"))
+        # Früher Schluss
+        holidays += [
+            (date(yr, 7, 3),   "🟡 Früher Schluss (20:00 Uhr DE) — Tag vor Unabhängigkeitstag", "early"),
+            (date(yr, 12, 24), "🟡 Früher Schluss (20:00 Uhr DE) — Heiligabend",                 "early"),
+        ]
+        if len(nov_thu) >= 4:
+            after_thanks = nov_thu[3] + timedelta(days=1)
+            holidays.append((after_thanks, "🟡 Früher Schluss (20:00 Uhr DE) — nach Thanksgiving", "early"))
+
+        # Good Friday (Karfreitag) — Ostern berechnen (Gauß)
+        try:
+            a = yr % 19; b = yr // 100; c = yr % 100
+            d2 = b // 4; e = b % 4; f = (b + 8) // 25
+            g = (b - f + 1) // 3; h = (19*a + b - d2 - g + 15) % 30
+            i = c // 4; k = c % 4; l = (32 + 2*e + 2*i - h - k) % 7
+            m = (a + 11*h + 22*l) // 451
+            month_e = (h + l - 7*m + 114) // 31; day_e = ((h + l - 7*m + 114) % 31) + 1
+            easter = date(yr, month_e, day_e)
+            good_friday = easter - timedelta(days=2)
+            holidays.append((good_friday, "🔴 Karfreitag — Börse geschlossen", "closed"))
+        except Exception:
+            pass
+
+        events += holidays
+
+        # Options-Verfall (3. Freitag jedes Monats)
+        for mo in range(1, 13):
+            try:
+                tf = _third_friday(yr, mo)
+                if mo in [3, 6, 9, 12]:
+                    events.append((tf, "⚡ Großer Verfall (Triple Witching) — starke Volatilität möglich", "witching"))
+                else:
+                    events.append((tf, "🟠 Options-Verfall — erhöhte Volatilität möglich", "expiry"))
+            except Exception:
+                pass
+
+        # FOMC Zinsentscheide 2025 & 2026 (Termine können leicht abweichen)
+        fomc = {
+            2025: [(1,29),(3,19),(5,7),(6,18),(7,30),(9,17),(10,29),(12,10)],
+            2026: [(1,28),(3,18),(4,29),(6,17),(7,29),(9,16),(10,28),(12,9)],
+        }
+        for mo, day in fomc.get(yr, []):
+            try:
+                events.append((date(yr, mo, day), "🏦 Fed-Zinsentscheid (FOMC) — Markt reagiert oft stark", "fomc"))
+            except Exception:
+                pass
+
+        # US-Arbeitsmarktbericht (1. Freitag im Monat)
+        for mo in range(1, 13):
+            try:
+                ff = _first_friday(yr, mo)
+                events.append((ff, "📊 US-Arbeitsmarktbericht (Non-Farm Payrolls)", "jobs"))
+            except Exception:
+                pass
+
+    # Filtern: nur zukünftig + innerhalb days_ahead
+    cutoff = today + timedelta(days=days_ahead)
+    upcoming = [(d, label, typ) for d, label, typ in events if today <= d <= cutoff]
+    # Duplikate entfernen
+    seen = set()
+    unique = []
+    for d, label, typ in sorted(upcoming, key=lambda x: x[0]):
+        key = (d, typ)
+        if key not in seen:
+            seen.add(key)
+            unique.append((d, label, typ))
+    return unique
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def translate_de(text: str) -> str:
     """Übersetzt englischen Text ins Deutsche. 24h gecacht."""
@@ -960,6 +1071,39 @@ st.markdown(
     unsafe_allow_html=True
 )
 st.caption("⚠️ Dieses Tool dient ausschließlich zur persönlichen Information. Keine Finanz- oder Anlageberatung. Alle Entscheidungen liegen allein bei dir. Kursdaten von Yahoo Finance — keine Gewähr für Richtigkeit.")
+
+# ── Marktkalender-Widget ──────────────────────────────────────────────────────
+_cal = get_market_calendar(days_ahead=60)
+_today = date.today()
+_urgent = [(d, label, typ) for d, label, typ in _cal if (d - _today).days <= 7]
+
+# Wenn ein wichtiges Datum in den nächsten 7 Tagen ist → Banner anzeigen
+if _urgent:
+    _d, _label, _typ = _urgent[0]
+    _days_left = (_d - _today).days
+    _when = "heute" if _days_left == 0 else f"in {_days_left} Tag{'en' if _days_left != 1 else ''}"
+    _bgcol = "#fff0f0" if _typ == "closed" else "#fff8e8" if _typ in ("early","expiry","witching") else "#e8f4ff"
+    _brcol = "#f44336" if _typ == "closed" else "#ff9800" if _typ in ("early","expiry","witching") else "#1976d2"
+    st.markdown(f"""<div style="background:{_bgcol};border:1px solid {_brcol};border-radius:10px;
+        padding:8px 16px;margin-bottom:8px;font-size:0.9rem">
+        <b>Markthinweis ({_when}):</b> {_label}
+    </div>""", unsafe_allow_html=True)
+
+with st.expander(f"📅 US-Börsenkalender — nächste Termine ({len(_cal)} Events)", expanded=False):
+    if _cal:
+        for d, label, typ in _cal[:15]:
+            days_left = (d - _today).days
+            when = "Heute" if days_left == 0 else f"in {days_left} Tagen"
+            col_txt = "#d32f2f" if typ=="closed" else "#e65100" if typ in ("early","expiry","witching") else "#1565c0"
+            st.markdown(f"""<div style="display:flex;justify-content:space-between;
+                padding:5px 0;border-bottom:1px solid #f0e8ff;font-size:0.88rem">
+                <span>{label}</span>
+                <span style="color:{col_txt};font-weight:600;white-space:nowrap;margin-left:12px">
+                    {d.strftime('%d.%m.%Y')} &nbsp;({when})</span>
+            </div>""", unsafe_allow_html=True)
+    else:
+        st.caption("Keine besonderen Termine in den nächsten 60 Tagen.")
+
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔍 Analyse", "💼 Portfolio", "👁️ Watchlist", "🎯 Kauf-Signale", "📚 Wie funktioniert das?"])
 
 # ═══════════════════════════════════════════════════════════════════════════════
