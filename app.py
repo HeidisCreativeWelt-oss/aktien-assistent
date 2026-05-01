@@ -1089,17 +1089,66 @@ if _urgent:
         <b>Markthinweis ({_when}):</b> {_label}
     </div>""", unsafe_allow_html=True)
 
+_EVENT_INFO = {
+    "closed": (
+        "#fff0f0", "#f44336",
+        "Die US-Börse hat heute geschlossen — kein Handel, keine Kursbewegungen. "
+        "Du kannst Orders vorbereiten, sie werden erst am nächsten Handelstag ausgeführt."
+    ),
+    "early": (
+        "#fff8e8", "#ff9800",
+        "Die Börse schließt heute früher — um 20:00 Uhr deutscher Zeit statt 22:00 Uhr. "
+        "In den letzten Handelsstunden ist oft weniger los. Keine großen Käufe direkt vor Schluss."
+    ),
+    "expiry": (
+        "#fff3e0", "#fb8c00",
+        "Jeden 3. Freitag laufen Optionsverträge aus — viele Händler schließen Positionen. "
+        "Das kann zu ungewöhnlichen Kursschwankungen führen, auch ohne Nachrichten. "
+        "Einfach wachsamer sein als sonst."
+    ),
+    "witching": (
+        "#fce4ec", "#e91e63",
+        "4× im Jahr laufen Optionen, Index-Futures und Einzelaktien-Futures gleichzeitig aus — "
+        "der sogenannte 'Dreifache Hexensabbat'. Das ist der volatilste Tag im Quartal. "
+        "Kurse können stark schwanken, ohne dass es einen echten Grund gibt. "
+        "Empfehlung: an diesem Tag keinen neuen Einstieg wagen, lieber beobachten."
+    ),
+    "fomc": (
+        "#e3f2fd", "#1976d2",
+        "Die US-Notenbank (Fed) entscheidet über die Zinsen — das bewegt den gesamten Markt. "
+        "Zinserhöhung → Aktien fallen oft. Zinssenkung → Aktien steigen oft. "
+        "Die Entscheidung kommt um ca. 20:00 Uhr (DE), danach spricht der Chef der Fed — "
+        "in diesen Stunden sehr starke Bewegungen möglich. Vor dem Termin lieber nichts kaufen."
+    ),
+    "jobs": (
+        "#e8f5e9", "#388e3c",
+        "Jeden 1. Freitag erscheint dieser Bericht um 14:30 Uhr (DE-Zeit). "
+        "Er zeigt, wie viele neue Jobs in den USA entstanden sind. "
+        "Viele neue Jobs = starke Wirtschaft = oft gut für Aktien. "
+        "Aber zu viele Jobs = Inflation = Fed erhöht Zinsen = kann schlecht sein. "
+        "In den ersten 30 Minuten nach dem Bericht oft starke Kursbewegungen — Vorsicht."
+    ),
+}
+
 with st.expander(f"📅 US-Börsenkalender — nächste Termine ({len(_cal)} Events)", expanded=False):
     if _cal:
         for d, label, typ in _cal[:15]:
             days_left = (d - _today).days
-            when = "Heute" if days_left == 0 else f"in {days_left} Tagen"
-            col_txt = "#d32f2f" if typ=="closed" else "#e65100" if typ in ("early","expiry","witching") else "#1565c0"
-            st.markdown(f"""<div style="display:flex;justify-content:space-between;
-                padding:5px 0;border-bottom:1px solid #f0e8ff;font-size:0.88rem">
-                <span>{label}</span>
-                <span style="color:{col_txt};font-weight:600;white-space:nowrap;margin-left:12px">
-                    {d.strftime('%d.%m.%Y')} &nbsp;({when})</span>
+            when = "Heute" if days_left == 0 else ("Morgen" if days_left == 1 else f"in {days_left} Tagen")
+            bg, border, info_text = _EVENT_INFO.get(typ, ("#f5f5f5","#ccc",""))
+            urgency = " font-weight:700;" if days_left <= 3 else ""
+            st.markdown(f"""
+            <div style="background:{bg};border:1px solid {border};border-radius:10px;
+                        padding:10px 14px;margin-bottom:8px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <span style="font-size:0.9rem;font-weight:600">{label}</span>
+                    <span style="color:{border};font-size:0.85rem;{urgency}white-space:nowrap;margin-left:12px">
+                        {d.strftime('%d.%m.%Y')} ({when})
+                    </span>
+                </div>
+                <div style="font-size:0.8rem;color:#555;margin-top:5px;line-height:1.5">
+                    💡 {info_text}
+                </div>
             </div>""", unsafe_allow_html=True)
     else:
         st.caption("Keine besonderen Termine in den nächsten 60 Tagen.")
