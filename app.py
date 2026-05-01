@@ -643,6 +643,206 @@ def quick_check(ticker):
     except Exception:
         return None
 
+# ── Kauf-Signal Scanner ───────────────────────────────────────────────────────
+SCAN_UNIVERSE = [
+    # Mega Cap Tech
+    "AAPL","MSFT","NVDA","GOOGL","AMZN","META","TSLA","AVGO","ORCL","ADBE",
+    "CRM","INTU","NFLX","AMD","QCOM","TXN","AMAT","LRCX","KLAC","CDNS",
+    "SNPS","MCHP","ON","MPWR","MU","ADI","INTC","SMCI","ARM","PLTR",
+    # Gesundheit
+    "LLY","UNH","JNJ","ABT","TMO","ABBV","MRK","MDT","ELV","ISRG",
+    "REGN","VRTX","IDXX","DXCM","BSX","PODD","WST","GEHC","HUM","CI",
+    "BIIB","MRNA","ILMN","ZBH","RMD","BDX","ALGN","HOLX","IQV","STE",
+    # Finanzen
+    "JPM","BAC","WFC","GS","MS","AXP","BLK","SCHW","ICE","CME",
+    "COF","V","MA","SPGI","MCO","CB","PGR","AON","MMC","MSCI",
+    "NDAQ","FIS","FISV","AMP","LPLA","LPL","MKTX","STT","BEN","IVZ",
+    # Industrie
+    "CAT","DE","HON","ITW","GE","UPS","FDX","LMT","RTX","NOC",
+    "GD","BA","MMM","EMR","ROK","PH","ETN","AME","FAST","FIX",
+    "GEV","MLM","VMC","CBRE","CARR","OTIS","XYL","IEX","GNRC","URI",
+    "NSC","CSX","UNP","WAB","JBHT","CHRW","EXPD","GWW","PWR","MTZ",
+    # Energie
+    "XOM","CVX","COP","SLB","EOG","MPC","PSX","VLO","OXY","HAL",
+    "DVN","FANG","HES","BKR","KMI","WMB","OKE","LNG","COP","APA",
+    # Konsum
+    "COST","HD","WMT","TGT","LOW","MCD","SBUX","NKE","BKNG","HLT",
+    "MAR","RCL","DECK","ROST","TJX","ULTA","DRI","YUM","CMG","ABNB",
+    "UBER","EXPE","CVNA","CAVA","WING","DKNG","LVS","WYNN","MGM",
+    "KO","PEP","PM","MO","STZ","TAP","SYY","HSY","GIS","K",
+    "CPB","HRL","MKC","CAG","SJM","CLX","CHD","ENR","PG","CL",
+    # Kommunikation / Medien
+    "GOOGL","META","NFLX","DIS","CMCSA","T","VZ","TMUS","CHTR","EA",
+    "TTWO","RBLX","SPOT","SNAP","PINS","ZM","MTCH","IAC","OMC","IPG",
+    # Software / Cloud / Cyber
+    "NOW","SNOW","DDOG","NET","ZS","CRWD","OKTA","PANW","FTNT","HUBS",
+    "VEEV","WDAY","ADSK","ANSS","PTC","TTD","SHOP","MELI","SE","U",
+    "MDB","GTLB","CFLT","SAMSF","BILL","PCTY","PAYC","PAYX","ADP","JKHY",
+    # Rohstoffe / Materialien
+    "NEM","FCX","SCCO","AA","ALB","MP","LIN","APD","ECL","PPG",
+    "NUE","STLD","CLF","X","CF","MOS","FMC","CE","LYB","DOW",
+    # Versorger
+    "NEE","DUK","SO","AEP","D","EXC","ED","SRE","PCG","XEL",
+    # REITs
+    "AMT","CCI","PLD","EQIX","SPG","O","VICI","PSA","IRM","WY",
+    # Mid Cap Wachstum
+    "AXON","CELH","ELF","TOST","NTRA","CAVA","MEDP","RXRX","SOUN",
+    "SMMT","POWL","ONTO","TMDX","NUVL","SKX","YETI","VRSK","WEX",
+    "KSPI","GTLS","FND","LPX","NVR","PHM","DHI","LEN","TOL","MDC",
+    # Extra S&P 500
+    "ACGL","AFL","AIZ","APH","ARE","ATO","AVB","AVY","AZO","BAX",
+    "BRK-B","BWA","C","CBOE","CDW","CF","CINF","CMS","CNP","COO",
+    "CPRT","CTSH","CTVA","DAL","DD","DLTR","DOV","DTE","DVA","ECL",
+    "EFX","EIX","EL","EQT","ES","EW","EXR","F","FDS","FE",
+    "FFIV","FMC","GL","GLW","GM","GPC","GRMN","HAS","HPE","HPQ",
+    "HST","HUBB","HWM","IBM","IFF","INCY","IP","J","JCI","KEY",
+    "KHC","KMB","KMX","L","LH","LUV","LYV","MAS","MKC","MOH",
+    "MSCI","MTB","MTD","NEM","NRG","NTAP","NUE","OKE","PEG","PFG",
+    "PKG","PNC","PPL","PRU","RSG","SBAC","SNA","STX","SWK","SYF",
+    "SYK","TAP","TDG","TER","TFC","TGT","TPR","TRMB","TSCO","TSN",
+    "TT","TXT","UAL","UDR","UHS","USB","VFC","VMW","VTR","WAT",
+    "WBA","WELL","WHR","WM","WRB","WYNN","XEL","XRAY","ZBRA","ZION",
+]
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def scan_top_picks():
+    """Batch-Scan aller Aktien auf technische Kaufsignale. Einmal am Tag gecacht."""
+    try:
+        tickers = list(dict.fromkeys(SCAN_UNIVERSE))  # Duplikate entfernen
+        # Batch-Download: alle Aktien auf einmal — deutlich schneller
+        raw = yf.download(tickers, period="1y", progress=False,
+                          auto_adjust=True, group_by="ticker", threads=True)
+
+        results = []
+        for ticker in tickers:
+            try:
+                # Daten für diesen Ticker extrahieren
+                if len(tickers) > 1:
+                    df = raw[ticker].dropna(how="all")
+                else:
+                    df = raw.dropna(how="all")
+                df.columns = df.columns.get_level_values(0) if hasattr(df.columns, "get_level_values") else df.columns
+
+                if len(df) < 60 or "Close" not in df.columns:
+                    continue
+
+                close  = df["Close"].astype(float)
+                high   = df["High"].astype(float)
+                low    = df["Low"].astype(float)
+                volume = df["Volume"].astype(float)
+                price  = float(close.iloc[-1])
+
+                if price < 10:
+                    continue
+
+                # EMAs
+                ema20  = close.ewm(span=20,  adjust=False).mean()
+                ema50  = close.ewm(span=50,  adjust=False).mean()
+                ema200 = close.ewm(span=200, adjust=False).mean()
+
+                # MACD
+                macd_line   = close.ewm(span=12, adjust=False).mean() - close.ewm(span=26, adjust=False).mean()
+                signal_line = macd_line.ewm(span=9, adjust=False).mean()
+                macd_hist   = macd_line - signal_line
+                macd_bullish  = bool(macd_hist.iloc[-1] > 0)
+                macd_crossed  = bool(macd_hist.iloc[-1] > 0 and macd_hist.iloc[-4] <= 0)
+
+                # RSI
+                delta = close.diff()
+                gain  = delta.clip(lower=0).rolling(14).mean()
+                loss  = (-delta.clip(upper=0)).rolling(14).mean()
+                rsi   = float((100 - 100 / (1 + gain / loss.replace(0, 1e-9))).iloc[-1])
+
+                # Trendstruktur (höhere Hochs + höhere Tiefs)
+                seg = high.iloc[-60:].reset_index(drop=True)
+                sl  = low.iloc[-60:].reset_index(drop=True)
+                h1, h2, h3 = seg[:20].max(), seg[20:40].max(), seg[40:].max()
+                l1, l2, l3 = sl[:20].min(),  sl[20:40].min(),  sl[40:].min()
+                is_uptrend = bool(h3 > h2 > h1 and l3 > l2 > l1)
+
+                # EMA-Ausrichtung
+                e20, e50, e200 = float(ema20.iloc[-1]), float(ema50.iloc[-1]), float(ema200.iloc[-1])
+                ema_perfect   = price > e20 > e50 > e200
+                ema_ok        = price > e200 and e20 > e50
+
+                # Flaggen-Muster (Konsolidierung nach starkem Anstieg)
+                move_20d = (price / float(close.iloc[-21]) - 1) * 100 if len(close) > 21 else 0
+                move_5d  = (price / float(close.iloc[-6])  - 1) * 100 if len(close) > 6 else 0
+                std_5d   = float(close.iloc[-6:].pct_change().std() * 100)
+                flag_detected = bool(move_20d > 8 and abs(move_5d) < 3 and std_5d < 2.5)
+
+                # 52-Wochen
+                high_52w  = float(high.max())
+                pct_high  = (price - high_52w) / high_52w * 100
+
+                # Volumen-Bestätigung
+                avg_vol    = float(volume.rolling(20).mean().iloc[-1])
+                recent_vol = float(volume.iloc[-5:].mean())
+                vol_up     = recent_vol > avg_vol * 1.1
+
+                # ── Technische Wahrscheinlichkeit (0–95) ──────────────────────
+                score   = 0
+                reasons = []
+
+                if is_uptrend:
+                    score += 22
+                    reasons.append("Aufwärtstrend — höhere Hochs und höhere Tiefs")
+                if ema_perfect:
+                    score += 20
+                    reasons.append("EMA perfekt ausgerichtet: Kurs > EMA20 > EMA50 > EMA200")
+                elif ema_ok:
+                    score += 10
+                    reasons.append("Kurs über EMA200, EMA20 über EMA50")
+                if macd_bullish:
+                    score += 13
+                    reasons.append("MACD positiv — Momentum bullisch")
+                if macd_crossed:
+                    score += 7
+                    reasons.append("MACD gerade nach oben gekreuzt — frisches Kaufsignal")
+                if 50 <= rsi <= 68:
+                    score += 15
+                    reasons.append(f"RSI {rsi:.0f} — bullisch, nicht überkauft")
+                elif 40 <= rsi < 50:
+                    score += 7
+                    reasons.append(f"RSI {rsi:.0f} — erholt sich, zeigt Stärke")
+                if flag_detected:
+                    score += 15
+                    reasons.append(f"Flaggen-Muster — {move_20d:.0f}% Anstieg, jetzt gesunde Pause")
+                if -20 <= pct_high <= -5:
+                    score += 5
+                    reasons.append(f"{abs(pct_high):.0f}% unter 52W-Hoch — Luft nach oben")
+                if vol_up and macd_bullish:
+                    score += 3
+                    reasons.append("Volumen bestätigt das Momentum")
+
+                # Mindest-Score: Aufwärtstrend MUSS vorhanden sein
+                if not (is_uptrend or ema_ok):
+                    continue
+
+                results.append({
+                    "ticker":      ticker,
+                    "price":       round(price, 2),
+                    "score":       score,
+                    "probability": min(score, 95),
+                    "reasons":     reasons,
+                    "rsi":         round(rsi, 1),
+                    "macd_crossed": macd_crossed,
+                    "flag":        flag_detected,
+                    "uptrend":     is_uptrend,
+                    "ema_perfect": ema_perfect,
+                    "pct_high":    round(pct_high, 1),
+                    "move_20d":    round(move_20d, 1),
+                })
+
+            except Exception:
+                continue
+
+        results.sort(key=lambda x: -x["score"])
+        return results
+
+    except Exception:
+        return []
+
 # ── Seite ─────────────────────────────────────────────────────────────────────
 data = load_data()
 
@@ -656,7 +856,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 st.caption("⚠️ Dieses Tool dient ausschließlich zur persönlichen Information. Keine Finanz- oder Anlageberatung. Alle Entscheidungen liegen allein bei dir. Kursdaten von Yahoo Finance — keine Gewähr für Richtigkeit.")
-tab1, tab2, tab3, tab4 = st.tabs(["🔍 Analyse", "💼 Portfolio", "👁️ Watchlist", "📚 Wie funktioniert das?"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔍 Analyse", "💼 Portfolio", "👁️ Watchlist", "🎯 Kauf-Signale", "📚 Wie funktioniert das?"])
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # TAB 1 – ANALYSE
@@ -1473,6 +1673,112 @@ with tab3:
 # TAB 4 – ERKLÄRUNGEN
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab4:
+    # ═══════════════════════════════════════════════════════════════════════════
+    # TAB 4 – KAUF-SIGNALE SCANNER
+    # ═══════════════════════════════════════════════════════════════════════════
+    st.subheader("Technische Kauf-Signale — Top 3 aus ~350 US-Aktien")
+    st.caption(
+        "Rein technische Analyse. Kein Fundamentals. "
+        "Das Tool prüft: Aufwärtstrend, MACD, gleitende Durchschnitte, RSI, Flaggen-Muster. "
+        "Einmal täglich gecacht — beim ersten Start dauert es 3-5 Minuten."
+    )
+    st.markdown("---")
+
+    col_scan, col_reset = st.columns([3, 1])
+    with col_scan:
+        start_scan = st.button("Scanner starten", type="primary", use_container_width=True)
+    with col_reset:
+        if st.button("Neu laden", use_container_width=True):
+            st.cache_data.clear()
+            if "scan_done" in st.session_state:
+                del st.session_state["scan_done"]
+            st.rerun()
+
+    if start_scan:
+        st.session_state["scan_done"] = True
+
+    if st.session_state.get("scan_done"):
+        with st.spinner("Scanne ~350 US-Aktien auf technische Kaufsignale … (beim ersten Mal 3-5 Min)"):
+            picks = scan_top_picks()
+
+        if not picks:
+            st.error("Scan fehlgeschlagen. Bitte später nochmal versuchen.")
+        else:
+            top3 = picks[:3]
+            rest = picks[3:10]
+
+            st.markdown(f"**{len(picks)} Aktien mit positivem Signal gefunden — hier die stärksten:**")
+            st.markdown("---")
+
+            for rank, p in enumerate(top3, 1):
+                prob = p["probability"]
+                # Farbe nach Score
+                if prob >= 70:
+                    bar_col, bg_col, brd_col, medal = "#00c853", "#e8fff2", "#00c853", ["🥇","🥈","🥉"][rank-1]
+                elif prob >= 50:
+                    bar_col, bg_col, brd_col, medal = "#ff9800", "#fff8e8", "#ff9800", ["🥇","🥈","🥉"][rank-1]
+                else:
+                    bar_col, bg_col, brd_col, medal = "#888", "#f5f5f5", "#ccc", ["🥇","🥈","🥉"][rank-1]
+
+                with st.container():
+                    st.markdown(f"""
+                    <div style="background:{bg_col};border:2px solid {brd_col};border-radius:16px;
+                                padding:20px 24px;margin-bottom:16px">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                            <div>
+                                <span style="font-size:1.6rem">{medal}</span>
+                                <span style="color:#472d93;font-weight:800;font-size:1.3rem;margin-left:8px">{p['ticker']}</span>
+                                <span style="color:#888;font-size:0.9rem;margin-left:6px">| ${p['price']:.2f}</span>
+                            </div>
+                            <div style="text-align:right">
+                                <div style="color:{bar_col};font-weight:800;font-size:1.5rem">{prob}%</div>
+                                <div style="color:#888;font-size:0.75rem">techn. Wahrscheinlichkeit</div>
+                            </div>
+                        </div>
+                        <div style="background:#e0e0e0;border-radius:8px;height:10px;margin:12px 0">
+                            <div style="background:{bar_col};width:{prob}%;height:10px;border-radius:8px"></div>
+                        </div>
+                        <div style="margin-top:10px">
+                            {"".join(f'<div style="color:#2d1f4e;font-size:0.9rem;margin:4px 0">✅ {r}</div>' for r in p['reasons'])}
+                        </div>
+                        <div style="margin-top:10px;font-size:0.8rem;color:#888">
+                            RSI: {p['rsi']} &nbsp;|&nbsp;
+                            {'MACD ↑ Frisches Kreuz ' if p['macd_crossed'] else 'MACD positiv ' if p.get('macd_crossed') is False else ''}
+                            {'&nbsp;|&nbsp; 🚩 Flagge erkannt' if p['flag'] else ''}
+                            {'&nbsp;|&nbsp; ' + str(abs(p['pct_high'])) + '% unter 52W-Hoch' if p['pct_high'] < -5 else ''}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    # Button zur Vollanalyse
+                    if st.button(f"Vollanalyse {p['ticker']}", key=f"scan_btn_{p['ticker']}"):
+                        with st.spinner(f"Analysiere {p['ticker']} …"):
+                            full = analyze_stock(p["ticker"])
+                        if full:
+                            st.session_state["res"] = full
+                            st.info(f"Vollanalyse geladen. Wechsle zum Tab 🔍 Analyse um sie zu sehen.")
+
+            # Weitere Kandidaten
+            if rest:
+                st.markdown("---")
+                st.markdown("**Weitere Kandidaten auf dem Radar:**")
+                cols = st.columns(len(rest))
+                for i, p in enumerate(rest):
+                    with cols[i]:
+                        clr = "#00a844" if p["probability"] >= 60 else "#d97700"
+                        st.markdown(f"""
+                        <div style="background:white;border:1px solid #e5c5f1;border-radius:10px;
+                                    padding:10px;text-align:center">
+                            <div style="font-weight:700;color:#472d93">{p['ticker']}</div>
+                            <div style="font-weight:800;color:{clr};font-size:1.1rem">{p['probability']}%</div>
+                            <div style="font-size:0.75rem;color:#888">${p['price']:.2f}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.caption("⚠️ Rein technische Signale — keine Anlageberatung. Hohe Wahrscheinlichkeit bedeutet nicht garantierter Gewinn.")
+
+with tab5:
     st.subheader("Wie funktioniert das alles? Einfach erklärt.")
     st.caption("Hier findest du alles erklärt — so einfach wie möglich.")
 
