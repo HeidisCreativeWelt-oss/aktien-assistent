@@ -8,6 +8,22 @@ import streamlit.components.v1 as components
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+try:
+    from deep_translator import GoogleTranslator
+    _translator_available = True
+except ImportError:
+    _translator_available = False
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def translate_de(text: str) -> str:
+    """Übersetzt englischen Text ins Deutsche. 24h gecacht."""
+    if not text or len(text.strip()) < 20 or not _translator_available:
+        return text
+    try:
+        return GoogleTranslator(source="auto", target="de").translate(text[:4500])
+    except Exception:
+        return text
+
 st.set_page_config(page_title="Heidis Aktien-Assistent", page_icon="📈", layout="wide")
 
 st.markdown("""
@@ -239,7 +255,7 @@ def analyze_stock(ticker: str):
         "earnings_growth": info.get("earningsGrowth"),
         "roe": info.get("returnOnEquity"),
         "profit_margin": info.get("profitMargins"),
-        "description": (info.get("longBusinessSummary") or "")[:500],
+        "description": translate_de((info.get("longBusinessSummary") or "")[:1500]),
         "employees": info.get("fullTimeEmployees"),
         "website": info.get("website", ""),
         "ceo_name": ceo_name,
