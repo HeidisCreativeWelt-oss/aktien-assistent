@@ -362,6 +362,36 @@ def analyze_stock(ticker: str):
             except Exception:
                 pass
 
+            # ── Volumen-Analyse ───────────────────────────────────────────────
+            try:
+                vol = hist["Volume"].astype(float)
+                vol_avg20 = float(vol.rolling(20).mean().iloc[-1])
+                vol_avg5  = float(vol.tail(5).mean())
+                vol_today = float(vol.iloc[-1])
+
+                # Relatives Volumen (heute vs 20-Tage-Schnitt)
+                r["vol_rel"]   = round(vol_today / vol_avg20, 2) if vol_avg20 > 0 else 1.0
+                r["vol_avg20"] = int(vol_avg20)
+                r["vol_today"] = int(vol_today)
+
+                # Volumen-Trend: Steigt das Interesse?
+                r["vol_trend_growing"] = vol_avg5 > vol_avg20 * 1.05
+
+                # Kauftage vs Verkaufstage — Volumen-Bestätigung
+                last20 = hist.tail(20).copy()
+                last20["up"] = last20["Close"] > last20["Open"]
+                vol_up_days   = float(last20.loc[last20["up"],  "Volume"].mean())
+                vol_down_days = float(last20.loc[~last20["up"], "Volume"].mean())
+                r["vol_up_days"]   = int(vol_up_days)   if not pd.isna(vol_up_days)   else 0
+                r["vol_down_days"] = int(vol_down_days) if not pd.isna(vol_down_days) else 0
+                # Bullisch: Kauftage haben mehr Volumen als Verkaufstage
+                r["vol_confirms_trend"] = vol_up_days > vol_down_days if (vol_up_days > 0 and vol_down_days > 0) else None
+
+                # Ausbruchs-Volumen: deutlich über dem Schnitt
+                r["vol_breakout"] = vol_today > vol_avg20 * 1.8
+            except Exception:
+                pass
+
             # ── Support & Widerstand aus Pivot-Hochs/-Tiefs ───────────────────
             try:
                 # Quarterly Hochs/Tiefs als natürliche S/R-Zonen
@@ -480,6 +510,8 @@ def analyze_stock(ticker: str):
         s["Aufwärtstrend (Marktstruktur)"] = r["trend_structure"] == "Aufwärtstrend"
     else:
         s["Aufwärtstrend (Marktstruktur)"] = None
+    # Volumen bestätigt den Trend (Kauftage > Verkaufstage im Volumen)
+    s["Volumen bestätigt Trend"] = r.get("vol_confirms_trend")
 
     r["scores"] = s
     green = sum(1 for v in s.values() if v is True)
@@ -791,63 +823,85 @@ def scan_top_picks():
                 high_52w  = float(high.max())
                 pct_high  = (price - high_52w) / high_52w * 100
 
-                # Volumen-Bestätigung
+                # ── Volumen-Analyse ───────────────────────────────────────────
                 avg_vol    = float(volume.rolling(20).mean().iloc[-1])
-                recent_vol = float(volume.iloc[-5:].mean())
-                vol_up     = recent_vol > avg_vol * 1.1
+                avg_vol5   = float(volume.iloc[-5:].mean())
+                vol_rel    = avg_vol5 / avg_vol if avg_vol > 0 else 1.0
+
+                # Kauftage vs Verkaufstage (letzten 20 Tage)
+                last20_c = close.iloc[-20:]
+                last20_o = df["Open"].astype(float).iloc[-20:] if "Open" in df.columns else last20_c
+                up_mask  = (last20_c.values > last20_o.values)
+                vol_up_days   = float(volume.iloc[-20:][up_mask].mean())   if up_mask.any()  else avg_vol
+                vol_down_days = float(volume.iloc[-20:][~up_mask].mean())  if (~up_mask).any() else avg_vol
+                vol_confirms  = vol_up_days > vol_down_days  # Kauftage haben mehr Volumen
+
+                vol_trend_growing = avg_vol5 > avg_vol * 1.05  # Wachsendes Interesse
+                vol_breakout      = avg_vol5 > avg_vol * 1.8   # Ausbruchs-Volumen
 
                 # ── Technische Wahrscheinlichkeit (0–95) ──────────────────────
                 score   = 0
                 reasons = []
 
                 if is_uptrend:
-                    score += 22
+                    score += 20
                     reasons.append("Aufwärtstrend — höhere Hochs und höhere Tiefs")
                 if ema_perfect:
-                    score += 20
+                    score += 18
                     reasons.append("EMA perfekt ausgerichtet: Kurs > EMA20 > EMA50 > EMA200")
                 elif ema_ok:
-                    score += 10
+                    score += 9
                     reasons.append("Kurs über EMA200, EMA20 über EMA50")
                 if macd_bullish:
-                    score += 13
+                    score += 12
                     reasons.append("MACD positiv — Momentum bullisch")
                 if macd_crossed:
-                    score += 7
+                    score += 6
                     reasons.append("MACD gerade nach oben gekreuzt — frisches Kaufsignal")
                 if 50 <= rsi <= 68:
-                    score += 15
+                    score += 13
                     reasons.append(f"RSI {rsi:.0f} — bullisch, nicht überkauft")
                 elif 40 <= rsi < 50:
-                    score += 7
+                    score += 6
                     reasons.append(f"RSI {rsi:.0f} — erholt sich, zeigt Stärke")
                 if flag_detected:
-                    score += 15
+                    score += 13
                     reasons.append(f"Flaggen-Muster — {move_20d:.0f}% Anstieg, jetzt gesunde Pause")
                 if -20 <= pct_high <= -5:
                     score += 5
                     reasons.append(f"{abs(pct_high):.0f}% unter 52W-Hoch — Luft nach oben")
-                if vol_up and macd_bullish:
-                    score += 3
-                    reasons.append("Volumen bestätigt das Momentum")
+                # Volumen-Signale (jetzt echte Gewichtung)
+                if vol_confirms:
+                    score += 8
+                    reasons.append(f"Volumen bestätigt: Kauftage haben mehr Volumen als Verkaufstage")
+                if vol_trend_growing:
+                    score += 5
+                    reasons.append(f"Wachsendes Interesse — Volumen steigt ({vol_rel:.1f}x Schnitt)")
+                if vol_breakout:
+                    score += 5
+                    reasons.append(f"Ausbruchs-Volumen — {vol_rel:.1f}x über dem 20-Tage-Schnitt")
 
                 # Mindest-Score: Aufwärtstrend MUSS vorhanden sein
                 if not (is_uptrend or ema_ok):
                     continue
 
                 results.append({
-                    "ticker":      ticker,
-                    "price":       round(price, 2),
-                    "score":       score,
-                    "probability": min(score, 95),
-                    "reasons":     reasons,
-                    "rsi":         round(rsi, 1),
-                    "macd_crossed": macd_crossed,
-                    "flag":        flag_detected,
-                    "uptrend":     is_uptrend,
-                    "ema_perfect": ema_perfect,
-                    "pct_high":    round(pct_high, 1),
-                    "move_20d":    round(move_20d, 1),
+                    "ticker":        ticker,
+                    "price":         round(price, 2),
+                    "score":         score,
+                    "probability":   min(score, 95),
+                    "reasons":       reasons,
+                    "rsi":           round(rsi, 1),
+                    "macd_crossed":  macd_crossed,
+                    "flag":          flag_detected,
+                    "uptrend":       is_uptrend,
+                    "ema_perfect":   ema_perfect,
+                    "pct_high":      round(pct_high, 1),
+                    "move_20d":      round(move_20d, 1),
+                    "vol_rel":       round(vol_rel, 1),
+                    "vol_confirms":  vol_confirms,
+                    "vol_breakout":  vol_breakout,
+                    "vol_growing":   vol_trend_growing,
                 })
 
             except Exception:
@@ -1760,9 +1814,13 @@ with tab4:
                         </div>
                         <div style="margin-top:10px;font-size:0.8rem;color:#888">
                             RSI: {p['rsi']} &nbsp;|&nbsp;
-                            {'MACD ↑ Frisches Kreuz ' if p['macd_crossed'] else 'MACD positiv ' if p.get('macd_crossed') is False else ''}
-                            {'&nbsp;|&nbsp; 🚩 Flagge erkannt' if p['flag'] else ''}
+                            {'MACD ↑ Frisches Kreuz' if p['macd_crossed'] else 'MACD positiv'}
+                            {'&nbsp;|&nbsp; 🚩 Flagge' if p['flag'] else ''}
                             {'&nbsp;|&nbsp; ' + str(abs(p['pct_high'])) + '% unter 52W-Hoch' if p['pct_high'] < -5 else ''}
+                            &nbsp;|&nbsp;
+                            {'📊 Volumen ' + str(p['vol_rel']) + 'x — ' + ('Kauftage dominieren ✅' if p['vol_confirms'] else 'Verkaufstage dominieren ⚠️')}
+                            {'&nbsp;| 🔥 Ausbruchs-Volumen' if p['vol_breakout'] else ''}
+                            {'&nbsp;| 📈 Interesse wächst' if p['vol_growing'] else ''}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
