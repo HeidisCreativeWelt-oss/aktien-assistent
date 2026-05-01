@@ -817,6 +817,14 @@ def scan_top_picks():
                 ema_perfect   = price > e20 > e50 > e200
                 ema_ok        = price > e200 and e20 > e50
 
+                # ATR & Stop-Loss
+                hl  = high - low
+                hpc = (high - close.shift(1)).abs()
+                lpc = (low  - close.shift(1)).abs()
+                atr14 = pd.concat([hl, hpc, lpc], axis=1).max(axis=1).rolling(14).mean().iloc[-1]
+                stop_loss = round(price - 2.0 * float(atr14), 2)
+                stop_pct  = round((stop_loss - price) / price * 100, 1)
+
                 # Flaggen-Muster (Konsolidierung nach starkem Anstieg)
                 move_20d = (price / float(close.iloc[-21]) - 1) * 100 if len(close) > 21 else 0
                 move_5d  = (price / float(close.iloc[-6])  - 1) * 100 if len(close) > 6 else 0
@@ -910,6 +918,8 @@ def scan_top_picks():
                     "vol_confirms":  vol_confirms,
                     "vol_breakout":  vol_breakout,
                     "vol_growing":   vol_trend_growing,
+                    "stop_loss":     stop_loss,
+                    "stop_pct":      stop_pct,
                 })
 
             except Exception:
@@ -1820,15 +1830,25 @@ with tab4:
                         <div style="margin-top:10px">
                             {"".join(f'<div style="color:#2d1f4e;font-size:0.9rem;margin:4px 0">✅ {r}</div>' for r in p['reasons'])}
                         </div>
+                        <div style="margin-top:14px;background:#fff3cd;border:1px solid #ffc107;
+                                    border-radius:8px;padding:10px 14px;display:flex;
+                                    justify-content:space-between;align-items:center">
+                            <div>
+                                <span style="font-size:0.8rem;color:#856404;font-weight:600">🛑 STOP-LOSS setzen bei:</span>
+                                <span style="font-size:1.2rem;font-weight:800;color:#d32f2f;margin-left:8px">${p['stop_loss']:.2f}</span>
+                                <span style="font-size:0.85rem;color:#856404;margin-left:6px">({p['stop_pct']:.1f}% vom Einstieg)</span>
+                            </div>
+                            <div style="font-size:0.75rem;color:#856404">2× ATR — Profi-Methode</div>
+                        </div>
                         <div style="margin-top:10px;font-size:0.8rem;color:#888">
                             RSI: {p['rsi']} &nbsp;|&nbsp;
                             {'MACD ↑ Frisches Kreuz' if p['macd_crossed'] else 'MACD positiv'}
                             {'&nbsp;|&nbsp; 🚩 Flagge' if p['flag'] else ''}
                             {'&nbsp;|&nbsp; ' + str(abs(p['pct_high'])) + '% unter 52W-Hoch' if p['pct_high'] < -5 else ''}
                             &nbsp;|&nbsp;
-                            {'📊 Volumen ' + str(p['vol_rel']) + 'x — ' + ('Kauftage dominieren ✅' if p['vol_confirms'] else 'Verkaufstage dominieren ⚠️')}
-                            {'&nbsp;| 🔥 Ausbruchs-Volumen' if p['vol_breakout'] else ''}
-                            {'&nbsp;| 📈 Interesse wächst' if p['vol_growing'] else ''}
+                            {'📊 Vol. ' + str(p['vol_rel']) + 'x — ' + ('Kauftage ✅' if p['vol_confirms'] else 'Verkaufstage ⚠️')}
+                            {'&nbsp;| 🔥 Ausbruchs-Vol.' if p['vol_breakout'] else ''}
+                            {'&nbsp;| 📈 Vol. wächst' if p['vol_growing'] else ''}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
